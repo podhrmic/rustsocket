@@ -23,68 +23,23 @@ use smoltcp::phy::TapInterface;
 use std::net::UdpSocket;
 use smoltcp::socket::{RawSocket, RawSocketBuffer, RawPacketBuffer, AsSocket, SocketSet};
 use smoltcp::iface::{ArpCache, SliceArpCache, EthernetInterface};
-use smoltcp::wire::{EthernetAddress, IpVersion, IpProtocol, IpAddress, Ipv4Address, Ipv4Packet,
-                    UdpPacket, Ipv4Repr, UdpRepr};
+use smoltcp::wire::{EthernetAddress, IpVersion, IpProtocol, IpAddress, Ipv4Address};
 
 const HARDWARE_ADDRESS: EthernetAddress = EthernetAddress([0x04, 0x00, 0x00, 0x00, 0x00, 0x04]);
 
 /// Configuration struct that holds
 /// data about which packeets to pass
-struct FirewallConfiguration {
+struct RustsocketConfiguration {
     name: String,
-    addr_ok_to_send_to: Vec<Ipv4Address>,
-    addr_ok_to_recv_from: Vec<Ipv4Address>,
-    allowed_ports: Vec<u16>,
-    allowed_protocols: Vec<IpProtocol>,
     hardware_addr: EthernetAddress,
 }
 
-impl FirewallConfiguration {
-    fn new(name: &str) -> FirewallConfiguration {
-        FirewallConfiguration {
+impl RustsocketConfiguration {
+    fn new(name: &str) -> RustsocketConfiguration {
+        RustsocketConfiguration {
             name: String::from(name),
-            addr_ok_to_send_to: vec![],
-            addr_ok_to_recv_from: vec![],
-            allowed_ports: vec![],
-            allowed_protocols: vec![],
             hardware_addr: HARDWARE_ADDRESS,
         }
-    }
-
-    /// Is the given port allowed to be used?
-    /// Note: if the list of ports is empty, all ports are allowed
-    fn is_allowed_port(&self, port: u16) -> bool {
-        if self.allowed_ports.is_empty() {
-            return true;
-        }
-        self.allowed_ports.contains(&port)
-    }
-
-    /// Is the given IP address allowed to be send to?
-    /// Note: if the list of allowed addresses is empty, any address is allowed
-    fn is_ok_to_send_to(&self, addr: Ipv4Address) -> bool {
-        if self.addr_ok_to_send_to.is_empty() {
-            return true;
-        }
-        self.addr_ok_to_send_to.contains(&addr)
-    }
-
-    /// Is the given IP address allowed to be received from?
-    /// Note: if the list of allowed addresses is empty, any address is allowed
-    fn is_ok_to_recv_from(&self, addr: Ipv4Address) -> bool {
-        if self.addr_ok_to_recv_from.is_empty() {
-            return true;
-        }
-        self.addr_ok_to_recv_from.contains(&addr)
-    }
-
-    /// Is the given IP protocol allowed to be used?
-    /// Note: if the list of protocols is empty, all Ip protocols are allowed
-    fn is_allowed_protocol(&self, protocol: IpProtocol) -> bool {
-        if self.allowed_protocols.is_empty() {
-            return true;
-        }
-        self.allowed_protocols.contains(&protocol)
     }
 }
 
@@ -157,22 +112,21 @@ fn thread_socket_receiver(name: String, // typically SocketReceiiver
 fn main() {
     // logging and options setup
     utils::setup_logging("warn");
-    let (mut opts, mut free) = utils::create_options();
-    utils::add_tap_options(&mut opts, &mut free);
+    let (opts, free) = utils::create_options();
     let mut matches = utils::parse_options(&opts, free);
 
     // iface and socket setup
     let device_name = utils::parse_tap_options(&mut matches);
     println!("device_name {}", device_name);
-    let local_address = Ipv4Address::from_str(&matches.free[0]).expect("invalid address format");
+    let local_address = Ipv4Address::from_str(&matches.free.remove(0)).expect("invalid address format");
     println!("local_address {}", local_address);
-    let vm_iface_addr = Ipv4Address::from_str(&matches.free[0]).expect("invalid address format");
+    let vm_iface_addr = Ipv4Address::from_str(&matches.free.remove(0)).expect("invalid address format");
     println!("vm_iface {}", vm_iface_addr);
-    let vm_address = Ipv4Address::from_str(&matches.free[0]).expect("invalid address format");
+    let vm_address = Ipv4Address::from_str(&matches.free.remove(0)).expect("invalid address format");
     println!("vm_address {}", vm_address);
-    let tx_port = u16::from_str(&matches.free[0]).expect("invalid port format");
+    let tx_port = u16::from_str(&matches.free.remove(0)).expect("invalid port format");
     println!("tx_port {}", tx_port);
-    let rx_port = u16::from_str(&matches.free[0]).expect("invalid port format");
+    let rx_port = u16::from_str(&matches.free.remove(0)).expect("invalid port format");
     println!("rx_port {}", rx_port);
 
     // channels setup
@@ -180,7 +134,7 @@ fn main() {
     let (tx_1, rx_1) = mpsc::channel();
 
     // actual firewall configuration
-    let cfg_0 = FirewallConfiguration::new(&device_name);
+    let cfg_0 = RustsocketConfiguration::new(&device_name);
 
 
     println!("Rustwall starting.");
@@ -221,7 +175,7 @@ fn thread_iface(iface_name: &str,
                 ipaddr: Ipv4Address,
                 rx: mpsc::Receiver<Vec<u8>>,
                 tx: mpsc::Sender<Vec<u8>>,
-                cfg: FirewallConfiguration) {
+                cfg: RustsocketConfiguration) {
     let startup_time = Instant::now();
 
     let device = TapInterface::new(iface_name).unwrap();

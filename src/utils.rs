@@ -50,7 +50,7 @@ pub fn setup_logging(filter: &str) {
 pub fn create_options() -> (Options, Vec<&'static str>) {
     let mut opts = Options::new();
     opts.optflag("h", "help", "print this help menu");
-    let v = vec!["ADDRESS", "VM_INTERFACE", "VM_ADDRESS", "TX_PORT", "RX_PORT"];
+    let v = vec!["INTERFACE", "ADDRESS", "VM_INTERFACE", "VM_ADDRESS", "TX_PORT", "RX_PORT"];
     (opts, v)
 }
 
@@ -80,10 +80,6 @@ pub fn parse_options(options: &Options, free: Vec<&str>) -> Matches {
             matches
         }
     }
-}
-
-pub fn add_tap_options(_opts: &mut Options, free: &mut Vec<&str>) {
-    free.push("INTERFACE");
 }
 
 pub fn parse_tap_options(matches: &mut Matches) -> String {
