@@ -1,8 +1,25 @@
 /// Rustsocket
-/// 
+///
 /// Helper program for Rustwall
 /// Forwards data from tap interface over sockets to a remote machine
 /// To be run on a VM
+/// 
+/// Script to set tap device:
+/// ```
+/// #!/bin/bash
+/// sudo ip tuntap add dev tap1 mode tap
+/// sudo ip addr add 192.168.69.1/24 broadcast 192.168.69.255 dev tap1
+/// sudo ip link set tap1 up
+/// ```
+///
+/// And then delete the tap device with:
+/// ```
+/// sudo ip tuntap del dev tap1 mode tap
+/// ```
+///
+/// Start program with for example:
+/// cargo run -- tap1 192.168.69.1 192.168.56.101 192.168.56.1 6667 6666
+///
 #[macro_use]
 extern crate log;
 extern crate env_logger;
@@ -64,10 +81,10 @@ fn thread_socket_sender(name: String, // typically SocketSender
     println!("{} starting", name);
     loop {
         let data = rx.recv().expect("Couldn't receive data");
-        let len = socket
+        let _len = socket
             .send(data.as_slice())
             .expect("Couldn't send data");
-        println!("{} Sent {} data.", name, len);
+        //println!("{} Sent {} data.", name, len);
     }
 }
 
@@ -95,7 +112,7 @@ fn thread_socket_receiver(name: String, // typically SocketReceiiver
     loop {
         match socket.recv(&mut buf) {
             Ok(len) => {
-                println!("{} received {} data.", name, len);
+                //println!("{} received {} data.", name, len);
                 let data = buf[0..len].to_vec();
                 tx.send(data).expect("Couldn't send data");
             }
@@ -218,25 +235,25 @@ fn thread_iface(iface_name: &str,
             if socket.can_send() {
                 match rx.try_recv() {
                     Ok(payload) => {
-                        println!("{} Sending data", cfg.name);
-                        println!("Payload len = {}", payload.len());
+                        //println!("{} Sending data", cfg.name);
+                        //println!("Payload len = {}", payload.len());
                         let raw_payload = socket.send(payload.len()).unwrap(); // get a slice
                         for i in 0..payload.len() {
                         	raw_payload[i] = payload[i];
                         }
-                        println!("Payload: {:?}", payload);
-                        println!("Raw payload: {:?}", raw_payload);
+                        //println!("Payload: {:?}", payload);
+                        //println!("Raw payload: {:?}", raw_payload);
 
                     }
-                    Err(err) => {
-                        println!("{} Error receiving data: {}", cfg.name, err);
+                    Err(_err) => {
+                        //println!("{} Error receiving data: {}", cfg.name, err);
                     }
                 }
             } // if socket.can_send()
         }
 
         let timestamp = utils::millis_since(startup_time);
-        let poll_at = iface.poll(&mut sockets, timestamp).expect("poll error");
+        let _poll_at = iface.poll(&mut sockets, timestamp).expect("poll error");
         phy_wait(fd, Some(1)).expect("wait error");
     }
 }
